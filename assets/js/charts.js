@@ -3,14 +3,14 @@
 import { esc, fmtNum, fmtDate } from './util.js';
 
 /** gólok meccsenként: lőtt felfelé, kapott lefelé; xG pontokkal */
-export function goalsTimeline(list, { height = 180 } = {}) {
+export function goalsTimeline(list, { height = 150 } = {}) {
   if (!list.length) return '<div class="empty small">Nincs adat</div>';
-  const W = Math.max(320, list.length * 22);
+  const W = list.length * 40 + 20;
   const H = height;
   const mid = H / 2;
   const maxG = Math.max(3, ...list.map((x) => Math.max(x.gf, x.ga, x.xgf || 0, x.xga || 0)));
   const unit = (mid - 18) / maxG;
-  const bw = Math.min(14, (W - 20) / list.length - 4);
+  const bw = 18;
   const step = (W - 20) / list.length;
   const col = { W: 'var(--pos)', D: 'var(--draw)', L: 'var(--neg)' };
   let bars = '';
@@ -29,11 +29,11 @@ export function goalsTimeline(list, { height = 180 } = {}) {
     if (maxG > 5 && g % 2) continue;
     grid += `<line x1="0" x2="${W}" y1="${mid - g * unit}" y2="${mid - g * unit}"/><line x1="0" x2="${W}" y1="${mid + g * unit}" y2="${mid + g * unit}"/>`;
   }
-  return `<div class="table-wrap"><svg class="chart" viewBox="0 0 ${W} ${H}" style="min-width:${Math.min(W, 640)}px;height:${H}px" preserveAspectRatio="none">
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}" style="width:${W}px;max-width:100%;height:auto">
     <g class="grid">${grid}</g>
     <line class="axis" x1="0" x2="${W}" y1="${mid}" y2="${mid}"/>
     ${bars}
-  </svg></div>`;
+  </svg>`;
 }
 
 /** tükrözött összehasonlító sor */
