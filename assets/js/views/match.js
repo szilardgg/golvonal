@@ -1,8 +1,6 @@
-// Mérkőzés-elemzés: a lehetséges kimenetek esélyei
-
 import { $, $$, esc, icon, fmtPct, fmtNum, fmtDate, store } from '../util.js';
-import { state, getModel, getFixtures, findFixture, leagueInfo, api } from '../data.js';
-import { predict, evalMarkets, teamMatches, aggregate, leagueTable, marketText } from '../model.js';
+import { state, getFit, getFixtures, findFixture, leagueInfo, api } from '../data.js';
+import { calcMatch, evalMarkets, teamMatches, aggregate, leagueTable, marketText } from '../stats.js';
 import { leagueOptions, teamOptions, formDots, probBar, pcell, loading, errorBox, empty, kpi, scoreBadge, matchLink, leagueTag } from '../ui.js';
 import { cmpRow } from '../charts.js';
 import { bindSearch } from '../search.js';
@@ -26,9 +24,9 @@ export async function renderMatch(view, params) {
       </div>
       <div class="picker">
         <label class="field f-league"><span>Bajnokság</span><select class="select" id="pk-l">${leagueOptions(l)}</select></label>
-        <label class="field"><span>Hazai</span><select class="select" id="pk-h"><option>Betöltés…</option></select></label>
+        <label class="field"><span>Hazai</span><select class="select" id="pk-h"><option>Betöltés...</option></select></label>
         <button class="btn swap" id="pk-swap" title="Csere" aria-label="Csapatok cseréje">${icon('swap', 16)}</button>
-        <label class="field"><span>Vendég</span><select class="select" id="pk-a"><option>Betöltés…</option></select></label>
+        <label class="field"><span>Vendég</span><select class="select" id="pk-a"><option>Betöltés...</option></select></label>
       </div>
     </div>
     <div id="m-body"></div>
@@ -50,10 +48,10 @@ export async function renderMatch(view, params) {
   });
 
   const body = $('#m-body');
-  body.innerHTML = loading('Adatok betöltése…');
+  body.innerHTML = loading('Adatok betöltése...');
   let L, M;
   try {
-    ({ L, M } = await getModel(l));
+    ({ L, M } = await getFit(l));
   } catch (e) {
     body.innerHTML = errorBox(e);
     return;
@@ -76,7 +74,7 @@ export async function renderMatch(view, params) {
   }
   store.set('lastLeague', l);
   const fx = findFixture(l, h, a);
-  const P = predict(M, h, a, { ref: fx && fx.ref });
+  const P = calcMatch(M, h, a, { ref: fx && fx.ref });
   const groups = buildGroups(P);
   const ids = new Set(groups.flatMap((g) => g.rows.flatMap((r) => r.ids)));
   for (const id of TOP_CANDIDATES(P)) ids.add(id);
@@ -90,25 +88,23 @@ function renderLeaguePick(body, l) {
   const li = leagueInfo(l);
   body.innerHTML = `
     <div class="card">
-      <div class="card-head"><h3>Következő meccsek · ${esc(li ? li.name : l)}</h3></div>
+      <div class="card-head"><h3>Következő meccsek: ${esc(li ? li.name : l)}</h3></div>
       ${fx.length ? `<div class="res-list">${fx.map((f) => `
         <a class="rl-row" href="${esc(matchLink(f.l, f.h, f.a))}">
           <span class="d muted small">${fmtDate(f.d)} ${esc(f.t || '')}</span>
           <span class="h">${esc(f.h)}</span>
-          <span class="vs">–</span>
+          <span class="vs">-</span>
           <span class="a">${esc(f.a)}</span>
           <span class="meta">${icon('chevron', 16)}</span>
         </a>`).join('')}</div>` : empty('Nincs ismert következő meccs', 'Válaszd ki fent a két csapatot.')}
     </div>`;
 }
 
-/* ---------- csoportok ---------- */
-
 const ln = (x) => fmtNum(x, 1);
 
 function buildGroups(P) {
   const G = [];
-  G.push({ title: 'Végeredmény', head: ['1 · hazai', 'X · döntetlen', '2 · vendég'], excl: true, rows: [{ label: '', ids: ['1X2:H', '1X2:D', '1X2:A'] }] });
+  G.push({ title: 'Végeredmény', head: ['Hazai', 'Döntetlen', 'Vendég'], excl: true, rows: [{ label: '', ids: ['1X2:H', '1X2:D', '1X2:A'] }] });
   G.push({ title: 'Kettős esély', head: ['1X', '12', 'X2'], rows: [{ label: '', ids: ['DC:1X', 'DC:12', 'DC:X2'] }] });
   G.push({ title: 'Gólok száma', head: ['Több mint', 'Kevesebb mint'], excl: true, rows: [0.5, 1.5, 2.5, 3.5, 4.5].map((x) => ({ label: `${ln(x)} gól`, ids: [`OU:${x}:O`, `OU:${x}:U`] })) });
   G.push({ title: 'Mindkét csapat szerez gólt', head: ['Igen', 'Nem'], excl: true, rows: [{ label: '', ids: ['BTTS:Y', 'BTTS:N'] }] });
@@ -132,7 +128,6 @@ function buildGroups(P) {
   return G;
 }
 
-/** jelöltek a „legvalószínűbb kimenetek” listához */
 function TOP_CANDIDATES(P) {
   const ids = ['1X2:H', '1X2:A', 'DC:1X', 'DC:X2', 'DC:12', 'BTTS:Y', 'BTTS:N', 'TS:H:Y', 'TS:A:Y', 'CLS:H:Y', 'CLS:A:Y', 'HTOU:0.5:O', 'HTOU:1.5:U'];
   for (const x of [1.5, 2.5, 3.5]) ids.push(`OU:${x}:O`, `OU:${x}:U`);
@@ -177,8 +172,6 @@ function topOutcomes() {
   return out.map((x) => ({ ...x, text: plainText(x.id, h, a) }));
 }
 
-/* ---------- megjelenítés ---------- */
-
 function renderAnalysis(body) {
   const { l, h, a, L, P, fx, ev } = cur;
   const li = leagueInfo(l);
@@ -198,22 +191,22 @@ function renderAnalysis(body) {
     <div class="card match-hero">
       <div class="mh-league">
         ${leagueTag(l)}<a href="#/bajnoksag?l=${l}">${esc(li ? li.name : l)}</a>
-        ${fx ? `<span>·</span><span>${fmtDate(fx.d, true)} ${esc(fx.t || '')}</span>` : ''}
+        ${fx ? `<span>${fmtDate(fx.d, true)} ${esc(fx.t || '')}</span>` : ''}
       </div>
       <div class="mh-teams">
         <div class="mh-team">
           <a class="name" href="#/csapat?l=${encodeURIComponent(l)}&t=${encodeURIComponent(h)}">${esc(h)}</a>
-          <div class="meta">${rowH ? `${rowH.pos}. hely · ${rowH.pts} pont` : ''}</div>
+          <div class="meta">${rowH ? `${rowH.pos}. hely, ${rowH.pts} pont` : ''}</div>
           ${formDots(formH)}
         </div>
         <div class="mh-center">
-          <div class="mh-score num">${best[0]}<span>–</span>${best[1]}</div>
+          <div class="mh-score num">${best[0]}<span>-</span>${best[1]}</div>
           <div class="cap">legvalószínűbb eredmény</div>
-          <div class="small muted" style="margin-top:6px">várható gólok ${fmtNum(P.lh, 1)} – ${fmtNum(P.la, 1)}</div>
+          <div class="small muted" style="margin-top:6px">várható gólok: ${fmtNum(P.lh, 1)} - ${fmtNum(P.la, 1)}</div>
         </div>
         <div class="mh-team away">
           <a class="name" href="#/csapat?l=${encodeURIComponent(l)}&t=${encodeURIComponent(a)}">${esc(a)}</a>
-          <div class="meta">${rowA ? `${rowA.pos}. hely · ${rowA.pts} pont` : ''}</div>
+          <div class="meta">${rowA ? `${rowA.pos}. hely, ${rowA.pts} pont` : ''}</div>
           ${formDots(formA)}
         </div>
       </div>
@@ -258,7 +251,6 @@ function renderTab() {
 
 function tabOdds(el) {
   const { groups, ev, P } = cur;
-  // pontos eredmények: a 6 legvalószínűbb
   const cs = [];
   for (let i = 0; i <= P.N; i++) for (let j = 0; j <= P.N; j++) cs.push([i, j, P.mat[i][j]]);
   cs.sort((x, y) => y[2] - x[2]);
@@ -282,7 +274,7 @@ function tabOdds(el) {
     <div class="card pg">
       <div class="pg-title">Pontos eredmény</div>
       <div class="pg-grid" style="grid-template-columns:repeat(3,minmax(0,1fr))">
-        ${cs.slice(0, 6).map(([i, j, p], k) => `<div class="pc ${k === 0 ? 'best' : ''}"><span class="pc-l">${i}–${j}</span><b class="num">${fmtPct(p, 0)}</b></div>`).join('')}
+        ${cs.slice(0, 6).map(([i, j, p], k) => `<div class="pc ${k === 0 ? 'best' : ''}"><span class="pc-l">${i}-${j}</span><b class="num">${fmtPct(p, 0)}</b></div>`).join('')}
       </div>
     </div>
   </div>`;
@@ -310,7 +302,7 @@ function tabForm(el) {
 
 async function tabH2H(el) {
   const { l, h, a } = cur;
-  el.innerHTML = `<div class="card">${loading('Korábbi egymás elleni meccsek…')}</div>`;
+  el.innerHTML = `<div class="card">${loading('Korábbi egymás elleni meccsek...')}</div>`;
   let list;
   try {
     list = (await api.h2h(l, h, a)).matches;
@@ -344,7 +336,7 @@ async function tabH2H(el) {
       return `<div class="rl-row">
         <span class="d muted small">${fmtDate(m.d, true)}</span>
         <span class="h ${r === 'h' ? 'win' : ''}">${esc(m.h)}</span>
-        <span class="vs"><span class="score">${m.hg}–${m.ag}</span></span>
+        <span class="vs"><span class="score">${m.hg}-${m.ag}</span></span>
         <span class="a ${r === 'a' ? 'win' : ''}">${esc(m.a)}</span>
         <span class="meta">${leagueTag(m.l)}</span>
       </div>`;
@@ -394,7 +386,6 @@ function tabStats(el) {
   };
 }
 
-/** érthető, egymondatos megfogalmazás */
 function plainText(id, home, away) {
   const p = id.split(':');
   const T = (k) => (k === 'H' ? home : away);

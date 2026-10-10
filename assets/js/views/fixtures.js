@@ -1,8 +1,6 @@
-// Közelgő mérkőzések az esélyekkel
-
 import { $, $$, esc, fmtDay, fmtPct, store, addDays, matchScore } from '../util.js';
-import { state, getFixtures, getModel, pool, leagueInfo } from '../data.js';
-import { predict, evalMarkets, leagueTable } from '../model.js';
+import { state, getFixtures, getFit, pool, leagueInfo } from '../data.js';
+import { calcMatch, evalMarkets, leagueTable } from '../stats.js';
 import { leagueTag, loading, errorBox, empty, matchLink } from '../ui.js';
 
 const F = Object.assign({ day: 'all', leagues: [], allLeagues: false }, store.get('fxFilter', {}));
@@ -21,11 +19,11 @@ export async function renderFixtures(view) {
         <div class="seg" id="fx-day">
           ${[['all', 'Mind'], ['today', 'Ma'], ['tomorrow', 'Holnap'], ['3', '3 nap'], ['7', '7 nap']].map(([k, t]) => `<button data-day="${k}" class="${F.day === k ? 'active' : ''}">${t}</button>`).join('')}
         </div>
-        <input class="input grow" id="fx-q" type="search" placeholder="Csapat szűrése…">
+        <input class="input grow" id="fx-q" type="search" placeholder="Csapat szűrése...">
       </div>
       <div class="fx-leagues" id="fx-leagues"></div>
     </div>
-    <div id="fx-list">${loading('Mérkőzések betöltése…')}</div>
+    <div id="fx-list">${loading('Mérkőzések betöltése...')}</div>
   `;
 
   $('#fx-day').addEventListener('click', (e) => {
@@ -69,7 +67,7 @@ function renderChips(fx) {
     `<button class="chip ${F.leagues.length ? '' : 'active'}" data-lg="">Összes</button>` +
     shown.map((c) => {
       const l = leagueInfo(c);
-      return `<button class="chip ${F.leagues.includes(c) ? 'active' : ''}" data-lg="${c}" title="${esc(l.country + ' – ' + l.name)}"><b class="cc">${esc(l.cc)}</b>${esc(l.name)}</button>`;
+      return `<button class="chip ${F.leagues.includes(c) ? 'active' : ''}" data-lg="${c}" title="${esc(l.country + ' - ' + l.name)}"><b class="cc">${esc(l.cc)}</b>${esc(l.name)}</button>`;
     }).join('') +
     (order.length > shown.length || F.allLeagues ? `<button class="chip ghost" data-more>${F.allLeagues ? 'Kevesebb' : `+ ${order.length - shown.length} bajnokság`}</button>` : '');
   el.onclick = (e) => {
@@ -106,7 +104,7 @@ function renderList() {
   let list = state.fixtures.filter((f) => (!F.leagues.length || F.leagues.includes(f.l)) && (!d0 || (f.d >= d0 && f.d <= d1)));
   if (q.trim()) list = list.filter((f) => matchScore(f.h, q) > 0 || matchScore(f.a, q) > 0);
   const sub = $('#fx-sub');
-  if (sub) sub.textContent = list.length ? `${list.length} mérkőzés – kattints egy meccsre a részletes esélyekért.` : 'Nincs mérkőzés.';
+  if (sub) sub.textContent = list.length ? `${list.length} mérkőzés. Kattints egy meccsre a részletes esélyekért.` : 'Nincs mérkőzés.';
   if (!list.length) {
     el.innerHTML = `<div class="card">${empty('Nincs a szűrésnek megfelelő mérkőzés', 'Próbálj másik napot vagy bajnokságot.')}</div>`;
     return;
@@ -165,7 +163,7 @@ async function compute(fx, view) {
   codes.sort((a, b) => (F.leagues.includes(b) ? 1 : 0) - (F.leagues.includes(a) ? 1 : 0));
   await pool(codes, 4, async (code) => {
     try {
-      const { L, M } = await getModel(code);
+      const { L, M } = await getFit(code);
       const pos = new Map(leagueTable(L.matches.filter((m) => m.s === L.seasons[0])).map((r) => [r.team, r.pos]));
       for (const f of fx) {
         if (f.l !== code) continue;
@@ -173,7 +171,7 @@ async function compute(fx, view) {
           f.err = true;
           continue;
         }
-        const ev = evalMarkets(predict(M, f.h, f.a, { ref: f.ref }), ['1X2:H', '1X2:D', '1X2:A', 'OU:2.5:O', 'BTTS:Y']);
+        const ev = evalMarkets(calcMatch(M, f.h, f.a, { ref: f.ref }), ['1X2:H', '1X2:D', '1X2:A', 'OU:2.5:O', 'BTTS:Y']);
         f.pr = {
           p3: [ev['1X2:H'].p, ev['1X2:D'].p, ev['1X2:A'].p],
           pO: ev['OU:2.5:O'].p,

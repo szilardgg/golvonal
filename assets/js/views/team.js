@@ -1,8 +1,6 @@
-// Csapat-profil
-
 import { $, $$, esc, icon, fmtDate, store } from '../util.js';
 import { state, getLeague, getFixtures, leagueInfo } from '../data.js';
-import { teamMatches, aggregate, leagueTable } from '../model.js';
+import { teamMatches, aggregate, leagueTable } from '../stats.js';
 import { leagueOptions, formDots, loading, errorBox, empty, kpi, scoreBadge, matchLink, leagueTag, pct, num } from '../ui.js';
 import { goalsTimeline } from '../charts.js';
 import { bindSearch } from '../search.js';
@@ -41,7 +39,7 @@ export async function renderTeam(view, params) {
     <div class="card team-hero">
       <div>
         <h1>${esc(t)}</h1>
-        <div class="meta">${leagueTag(l)}<a href="#/bajnoksag?l=${l}">${esc(li ? li.name : l)}</a>${row ? `<span>·</span><span>${row.pos}. hely, ${row.pts} pont</span>` : ''}</div>
+        <div class="meta">${leagueTag(l)}<a href="#/bajnoksag?l=${l}">${esc(li ? li.name : l)}</a>${row ? `<span>${row.pos}. hely, ${row.pts} pont</span>` : ''}</div>
       </div>
       <div class="team-hero-r">
         ${formDots(all.slice(-5).map((x) => x.r))}
@@ -51,7 +49,7 @@ export async function renderTeam(view, params) {
     ${upcoming.length ? `<div class="card next-card">
       ${upcoming.slice(0, 3).map((x) => `<a class="next-row" href="${esc(matchLink(x.l, x.h, x.a))}">
         <span class="muted small">${fmtDate(x.d)} ${esc(x.t || '')}</span>
-        <b>${esc(x.h)} – ${esc(x.a)}</b>
+        <b>${esc(x.h)} - ${esc(x.a)}</b>
         <span class="next-go">Esélyek ${icon('chevron', 15)}</span>
       </a>`).join('')}
     </div>` : ''}
@@ -91,8 +89,8 @@ function drawBody(el, { l, t, L, season }) {
   const A = aggregate(list);
   el.innerHTML = `
     <div class="kpis">
-      ${kpi('Mérleg', `${A.w}–${A.d}–${A.l}`, 'győzelem–döntetlen–vereség')}
-      ${kpi('Gólok', `${A.gf}:${A.ga}`, `${num(A.gfpm, 1)} – ${num(A.gapm, 1)} / meccs`)}
+      ${kpi('Mérleg', `${A.w}-${A.d}-${A.l}`, 'győzelem-döntetlen-vereség')}
+      ${kpi('Gólok', `${A.gf}:${A.ga}`, `${num(A.gfpm, 1)} - ${num(A.gapm, 1)} / meccs`)}
       ${kpi('3+ gólos meccsek', pct(A.over[2.5]))}
       ${kpi('Mindkettő lő', pct(A.btts))}
       ${kpi('Kapott gól nélkül', pct(A.cs))}
@@ -118,7 +116,7 @@ async function renderPicker(view, l) {
     <div class="card card-pad picker-card">
       <div class="quickfind">
         ${icon('search', 18)}
-        <input class="input" id="tp-q" type="search" placeholder="Csapat neve…" autocomplete="off">
+        <input class="input" id="tp-q" type="search" placeholder="Csapat neve..." autocomplete="off">
         <div class="qf-results" id="tp-res"></div>
       </div>
       <div class="picker" style="grid-template-columns:minmax(0,320px)">

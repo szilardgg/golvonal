@@ -1,8 +1,6 @@
-// Bajnokság: tabella, eredmények, következő meccsek esélyei, csapatstatisztika
-
 import { $, $$, esc, fmtPct, fmtNum, fmtDate, fmtSigned, store } from '../util.js';
-import { getModel, getLeague, loadLeague, getFixtures, leagueInfo, api } from '../data.js';
-import { leagueTable, leagueSummary, aggregate, teamMatches, predict, evalMarkets } from '../model.js';
+import { getFit, getLeague, loadLeague, getFixtures, leagueInfo, api } from '../data.js';
+import { leagueTable, leagueSummary, aggregate, teamMatches, calcMatch, evalMarkets } from '../stats.js';
 import { leagueOptions, formDots, loading, errorBox, empty, kpi, teamLink, matchLink } from '../ui.js';
 
 let tab = 'table';
@@ -137,7 +135,7 @@ function tabStats(el, ctx) {
     ...(L.flags.cards ? [['kf', 'Lap / m']] : []),
     ['o25', '3+ gól'], ['btts', 'Mindkettő lő'], ['cs', 'Kapott gól nélkül'],
   ];
-  const fmt = (k, v) => (v == null ? '–' : ['o25', 'btts', 'cs'].includes(k) ? fmtPct(v, 0) : k === 'n' ? v : fmtNum(v, k === 'gfpm' || k === 'gapm' ? 2 : 1));
+  const fmt = (k, v) => (v == null ? '-' : ['o25', 'btts', 'cs'].includes(k) ? fmtPct(v, 0) : k === 'n' ? v : fmtNum(v, k === 'gfpm' || k === 'gapm' ? 2 : 1));
   const draw = () => {
     const { key, dir } = statSort;
     const list = rows.slice().sort((a, b) => (key === 'team' ? dir * a.team.localeCompare(b.team, 'hu') : dir * ((a[key] ?? -1) - (b[key] ?? -1))));
@@ -170,7 +168,7 @@ function tabResults(el, ctx) {
         return `<a class="rl-row" href="${esc(matchLink(l, m.h, m.a))}">
           <span class="d muted small">${fmtDate(m.d)}</span>
           <span class="h ${r === 'h' ? 'win' : ''}">${esc(m.h)}</span>
-          <span class="vs"><span class="score">${m.hg}–${m.ag}</span></span>
+          <span class="vs"><span class="score">${m.hg}-${m.ag}</span></span>
           <span class="a ${r === 'a' ? 'win' : ''}">${esc(m.a)}</span>
           <span class="meta"></span>
         </a>`;
@@ -188,7 +186,7 @@ async function tabFixtures(el, ctx) {
   let fx, M;
   try {
     fx = (await getFixtures()).filter((f) => f.l === l);
-    M = (await getModel(l)).M;
+    M = (await getFit(l)).M;
   } catch (e) {
     el.innerHTML = errorBox(e);
     return;
@@ -200,7 +198,7 @@ async function tabFixtures(el, ctx) {
   el.innerHTML = `<div class="card fx-league">
     <div class="fx-league-head"><span>Következő meccsek</span><div class="fx-cols"><span>1</span><span>X</span><span>2</span><span>3+ gól</span><span>Mindkettő lő</span></div></div>
     ${fx.map((f) => {
-      const ev = M ? evalMarkets(predict(M, f.h, f.a, { ref: f.ref }), ['1X2:H', '1X2:D', '1X2:A', 'OU:2.5:O', 'BTTS:Y']) : null;
+      const ev = M ? evalMarkets(calcMatch(M, f.h, f.a, { ref: f.ref }), ['1X2:H', '1X2:D', '1X2:A', 'OU:2.5:O', 'BTTS:Y']) : null;
       const p3 = ev ? [ev['1X2:H'].p, ev['1X2:D'].p, ev['1X2:A'].p] : null;
       const mx = p3 ? Math.max(...p3) : -1;
       const cell = (p, best) => `<span class="fp ${best ? 'best' : ''}">${p == null ? '' : fmtPct(p, 0)}</span>`;

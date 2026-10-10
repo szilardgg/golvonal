@@ -1,8 +1,6 @@
-// Két csapat összevetése (akár különböző bajnokságból)
-
 import { $, esc, icon, fmtPct, fmtNum, store } from '../util.js';
-import { getModel, getLeague } from '../data.js';
-import { teamMatches, aggregate, predict, evalMarkets } from '../model.js';
+import { getFit, getLeague } from '../data.js';
+import { teamMatches, aggregate, calcMatch, evalMarkets } from '../stats.js';
 import { leagueOptions, teamOptions, formDots, loading, errorBox, empty, probBar, matchLink } from '../ui.js';
 import { cmpRow } from '../charts.js';
 
@@ -20,11 +18,11 @@ export async function renderCompare(view, params) {
       <div class="grid-2">
         <div class="cmp-pick">
           <label class="field"><span><span class="dot h"></span>Bajnokság</span><select class="select" id="c-l1">${leagueOptions(l1)}</select></label>
-          <label class="field"><span>Csapat</span><select class="select" id="c-t1"><option>Betöltés…</option></select></label>
+          <label class="field"><span>Csapat</span><select class="select" id="c-t1"><option>Betöltés...</option></select></label>
         </div>
         <div class="cmp-pick">
           <label class="field"><span><span class="dot a"></span>Bajnokság</span><select class="select" id="c-l2">${leagueOptions(l2)}</select></label>
-          <label class="field"><span>Csapat</span><select class="select" id="c-t2"><option>Betöltés…</option></select></label>
+          <label class="field"><span>Csapat</span><select class="select" id="c-t2"><option>Betöltés...</option></select></label>
         </div>
       </div>
     </div>
@@ -55,7 +53,7 @@ export async function renderCompare(view, params) {
   body.innerHTML = loading();
   let A, B;
   try {
-    [A, B] = await Promise.all([getModel(l1), getModel(l2)]);
+    [A, B] = await Promise.all([getFit(l1), getFit(l2)]);
   } catch (e) {
     body.innerHTML = errorBox(e);
     return;
@@ -91,10 +89,10 @@ function drawBody(body, ctx) {
   let pred = '';
   if (l1 === l2 && A.M) {
     const box = (h, a) => {
-      const ev = evalMarkets(predict(A.M, h, a), ['1X2:H', '1X2:D', '1X2:A']);
+      const ev = evalMarkets(calcMatch(A.M, h, a), ['1X2:H', '1X2:D', '1X2:A']);
       const p3 = [ev['1X2:H'].p, ev['1X2:D'].p, ev['1X2:A'].p];
       return `<a class="card card-pad cmp-pred" href="${esc(matchLink(l1, h, a))}">
-        <div class="cmp-pred-t"><b>${esc(h)} – ${esc(a)}</b>${icon('chevron', 16)}</div>
+        <div class="cmp-pred-t"><b>${esc(h)} - ${esc(a)}</b>${icon('chevron', 16)}</div>
         ${probBar(p3)}
         <div class="plabels"><span>1 <b>${fmtPct(p3[0], 0)}</b></span><span>X <b>${fmtPct(p3[1], 0)}</b></span><span>2 <b>${fmtPct(p3[2], 0)}</b></span></div>
       </a>`;

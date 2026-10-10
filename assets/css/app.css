@@ -1,7 +1,3 @@
-/* ==========================================================================
-   Gólvonal – stíluslap
-   ========================================================================== */
-
 :root {
   --bg: #f4f5f7;
   --bg-elev: #ffffff;
@@ -177,8 +173,6 @@ h3 {
   outline-offset: 2px;
   border-radius: 6px;
 }
-
-/* ---------- Felső sáv ---------------------------------------------------- */
 
 .topbar {
   position: sticky;
@@ -370,8 +364,6 @@ h3 {
   white-space: nowrap;
 }
 
-/* ---------- Elrendezés --------------------------------------------------- */
-
 .layout {
   flex: 1;
   width: 100%;
@@ -425,8 +417,6 @@ h3 {
   flex-wrap: wrap;
 }
 
-/* ---------- Kártyák ------------------------------------------------------ */
-
 .card {
   background: var(--bg-elev);
   border: 1px solid var(--line);
@@ -461,8 +451,6 @@ h3 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
 }
-
-/* ---------- Űrlapelemek -------------------------------------------------- */
 
 .btn {
   display: inline-flex;
@@ -629,8 +617,6 @@ h3 {
   font-weight: 650;
 }
 
-/* ---------- Apró elemek -------------------------------------------------- */
-
 .tag {
   display: inline-flex;
   align-items: center;
@@ -792,8 +778,6 @@ h3 {
   color: var(--neg);
 }
 
-/* ---------- Meccslista --------------------------------------------------- */
-
 .fx-filters {
   padding: 14px 16px;
   display: flex;
@@ -927,8 +911,6 @@ h3 {
   grid-column: 1 / -1;
   text-align: right;
 }
-
-/* ---------- Mérkőzés-elemzés -------------------------------------------- */
 
 .picker-card {
   margin-bottom: 18px;
@@ -1144,8 +1126,6 @@ h3 {
   border-bottom-color: var(--accent);
 }
 
-/* Esély-csoportok */
-
 .pg-wrap {
   columns: 2 320px;
   column-gap: 14px;
@@ -1228,8 +1208,6 @@ h3 {
   color: var(--text-3);
   font-weight: 500;
 }
-
-/* Statisztika-összevetés */
 
 .cmp-row {
   display: grid;
@@ -1330,8 +1308,6 @@ h3 {
 .cmp-pred-t b {
   color: var(--text);
 }
-
-/* ---------- Táblázatok, listák ------------------------------------------ */
 
 .table-wrap {
   overflow-x: auto;
@@ -1466,8 +1442,6 @@ table.tbl {
 .res-list .rl-row.team-row {
   grid-template-columns: 30px minmax(0, 1fr) auto 70px;
 }
-
-/* ---------- Csapat ------------------------------------------------------ */
 
 .team-hero {
   display: flex;
@@ -1605,8 +1579,6 @@ table.tbl {
   stroke: var(--line-strong);
 }
 
-/* ---------- Állapotok --------------------------------------------------- */
-
 .empty {
   text-align: center;
   padding: 44px 20px;
@@ -1669,8 +1641,6 @@ table.tbl {
   background: var(--neg-soft);
   color: var(--neg);
 }
-
-/* ---------- Reszponzív -------------------------------------------------- */
 
 @media (max-width: 900px) {
   :root {

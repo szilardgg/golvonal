@@ -1,5 +1,3 @@
-// Gólvonal – belépési pont, útválasztó
-
 import { $, $$ } from './util.js';
 import { init, STATIC } from './data.js';
 import { applyTheme, toggleTheme } from './theme.js';
@@ -31,8 +29,7 @@ async function route() {
   const { name, params } = parseHash();
   const [render, title] = routes[name];
   $$('#nav a').forEach((a) => a.classList.toggle('active', a.dataset.route === name));
-  document.title = `${title} · Gólvonal`;
-  // új elem, hogy a korábbi nézet késve érkező válaszai ne írjanak bele
+  document.title = `${title} | Gólvonal`;
   const view = document.createElement('main');
   view.id = 'view';
   view.className = 'view';

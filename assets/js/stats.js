@@ -1,24 +1,17 @@
-// Statisztikai modell: csapaterősségek, Poisson / Dixon–Coles gólmodell,
-// szöglet- és lapmodell, piacok kiértékelése, szelvény-számítás.
-
 import { clamp, fmtLine } from './util.js';
 
 const DAY = 86400000;
 export const toTs = (iso) => Date.parse(iso + 'T12:00:00Z');
 
 export const DEFAULT_OPTS = {
-  halfLife: 200, // napokban: ennyi idő alatt feleződik egy meccs súlya
-  wGoals: 0.4, // valódi gólok súlya
-  wXg: 0.25, // várható gólok (xG) súlya, ahol elérhető
-  wMarket: 0.35, // a lezárt meccsek piaci (záró) szorzóiból visszafejtett gólvárakozás súlya
-  shrink: 4, // zsugorítás az átlag felé (virtuális meccsek száma)
-  dc: true, // Dixon–Coles korrekció alacsony eredményekre
-  seasons: 2, // betöltött szezonok
+  halfLife: 200,
+  wGoals: 0.4,
+  wXg: 0.25,
+  wMarket: 0.35,
+  shrink: 4,
+  dc: true,
+  seasons: 2,
 };
-
-/* ------------------------------------------------------------------ */
-/* Eloszlások                                                          */
-/* ------------------------------------------------------------------ */
 
 export function pois(l, n) {
   const a = new Float64Array(n + 1);
@@ -31,7 +24,6 @@ export function pois(l, n) {
   return a;
 }
 
-/** negatív binomiális (szórásnégyzet = átlag * phi) */
 export function nbin(mean, phi, n) {
   if (!(phi > 1.03)) return pois(mean, n);
   const r = mean / (phi - 1);
@@ -44,7 +36,6 @@ export function nbin(mean, phi, n) {
 
 function binomRow(n, p) {
   const row = new Float64Array(n + 1);
-  // P(X=k), X~Bin(n,p)
   let c = 1;
   for (let k = 0; k <= n; k++) {
     row[k] = c * Math.pow(p, k) * Math.pow(1 - p, n - k);
@@ -59,15 +50,6 @@ export function implied(odds) {
   const s = inv.reduce((a, b) => a + b, 0);
   return inv.map((x) => x / s);
 }
-
-export function margin(odds) {
-  if (!odds) return null;
-  return odds.reduce((a, o) => a + 1 / o, 0) - 1;
-}
-
-/* ------------------------------------------------------------------ */
-/* Piaci szorzók -> várható gólok                                      */
-/* ------------------------------------------------------------------ */
 
 function hao(lh, la) {
   const N = 9;
@@ -86,9 +68,6 @@ function hao(lh, la) {
   return [H / T, A / T, O / T];
 }
 
-/**
- * 1X2 (és ha van, gólszám 2,5) valószínűségekből a két csapat várható gólszáma.
- */
 export function marketLambdas(p3, pO, avgTotal) {
   const sup = p3[0] - p3[2];
   if (pO != null) {
@@ -135,10 +114,6 @@ export function marketLambdas(p3, pO, avgTotal) {
   return [(T + S) / 2, (T - S) / 2];
 }
 
-/* ------------------------------------------------------------------ */
-/* Bajnoki adatok előkészítése                                         */
-/* ------------------------------------------------------------------ */
-
 export function prepLeague(raw, info) {
   const ms = raw.matches || [];
   for (const m of ms) m.ts = toTs(m.d);
@@ -164,7 +139,6 @@ export function prepLeague(raw, info) {
     m.mh = lh;
     m.ma = la;
   }
-  // csapatok szezononként
   const bySeason = new Map();
   for (const m of ms) {
     if (!bySeason.has(m.s)) bySeason.set(m.s, new Set());
@@ -182,14 +156,6 @@ export function prepLeague(raw, info) {
   return { code: raw.code, info, matches: ms, seasons, flags, avgT, teams, newTeams, bySeason };
 }
 
-/* ------------------------------------------------------------------ */
-/* Erősség-illesztés (multiplikatív Poisson, iteratív)                 */
-/* ------------------------------------------------------------------ */
-
-/**
- * rows: [{h, a, yh, ya, w}]
- * várható hazai = bh * att[h] * def[a]; várható vendég = ba * att[a] * def[h]
- */
 function fitStrength(rows, shrink, priorOf) {
   const idx = new Map();
   const names = [];
@@ -237,7 +203,6 @@ function fitStrength(rows, shrink, priorOf) {
   const num = new Float64Array(n), den = new Float64Array(n);
   for (let it = 0; it < 60; it++) {
     const mbar = (bh + ba) / 2;
-    // támadás
     for (let i = 0; i < n; i++) {
       num[i] = shrink * mbar * pAtt[i];
       den[i] = shrink * mbar;
@@ -259,7 +224,6 @@ function fitStrength(rows, shrink, priorOf) {
     }
     ma /= n || 1;
     for (let i = 0; i < n; i++) att[i] /= ma;
-    // védekezés
     for (let i = 0; i < n; i++) {
       num[i] = shrink * mbar * pDef[i];
       den[i] = shrink * mbar;
@@ -280,7 +244,6 @@ function fitStrength(rows, shrink, priorOf) {
     }
     md /= n || 1;
     for (let i = 0; i < n; i++) def[i] /= md;
-    // alapszintek
     let eh = 0, ea = 0;
     for (let k = 0; k < rows.length; k++) {
       const r = rows[k];
@@ -291,7 +254,6 @@ function fitStrength(rows, shrink, priorOf) {
     if (ea > 0) ba = sya / ea;
     if (maxd < 1e-6) break;
   }
-  // illeszkedési szórás (a szögletek / lapok szórásához)
   let sse = 0, smu = 0;
   rows.forEach((r, k) => {
     const mh = bh * att[H[k]] * def[A[k]];
@@ -337,11 +299,7 @@ function fitRho(rows, g) {
   return Math.round(best * 100) / 100;
 }
 
-/**
- * Modell építése egy bajnokságra.
- * refTs: csak az ennél korábbi meccseket használja (visszateszteléshez).
- */
-export function buildModel(L, opts = DEFAULT_OPTS, refTs = Date.now()) {
+export function fitLeague(L, opts = DEFAULT_OPTS, refTs = Date.now()) {
   const o = { ...DEFAULT_OPTS, ...opts };
   const hl = Math.max(20, o.halfLife);
   const rows = [];
@@ -375,7 +333,6 @@ export function buildModel(L, opts = DEFAULT_OPTS, refTs = Date.now()) {
   const goals = fitStrength(rows, o.shrink, priorOf);
   const rho = o.dc ? fitRho(rows, goals) : 0;
 
-  // félidő arány
   let w1h = 0, wfh = 0, w1a = 0, wfa = 0;
   for (const r of rows) {
     const m = r.m;
@@ -390,13 +347,11 @@ export function buildModel(L, opts = DEFAULT_OPTS, refTs = Date.now()) {
     a: wfa > 20 ? clamp(w1a / wfa, 0.3, 0.6) : 0.445,
   };
 
-  // szögletek
   let corners = null;
   const cRows = [];
   for (const r of rows) if (r.m.hc != null && r.m.ac != null) cRows.push({ h: r.h, a: r.a, yh: r.m.hc, ya: r.m.ac, w: r.w, m: r.m });
   if (cRows.length >= 30) corners = fitStrength(cRows, 6, null);
 
-  // lapok (sárga + piros)
   let cards = null;
   const kRows = [];
   for (const r of rows) {
@@ -405,7 +360,6 @@ export function buildModel(L, opts = DEFAULT_OPTS, refTs = Date.now()) {
   }
   if (kRows.length >= 30) {
     cards = fitStrength(kRows, 8, null);
-    // játékvezetői szorzó, zsugorítva
     const refs = new Map();
     kRows.forEach((r, k) => {
       const ref = r.m.ref;
@@ -431,13 +385,9 @@ function rating(fit, team) {
   return { att: fit.att[i], def: fit.def[i], known: true, w: fit.wsum[i] };
 }
 
-/* ------------------------------------------------------------------ */
-/* Előrejelzés                                                         */
-/* ------------------------------------------------------------------ */
-
 const NMAX = 10;
 
-export function predict(M, home, away, ctx = {}) {
+export function calcMatch(M, home, away, ctx = {}) {
   const g = M.goals;
   const rh = rating(g, home);
   const ra = rating(g, away);
@@ -485,10 +435,6 @@ export function predict(M, home, away, ctx = {}) {
   };
 }
 
-/* ------------------------------------------------------------------ */
-/* Piacok                                                              */
-/* ------------------------------------------------------------------ */
-
 const W = [1, 0], L0 = [0, 0], PU = [0, 1];
 const res = (h, a) => (h > a ? 'H' : h < a ? 'A' : 'D');
 const RES_CODE = { H: '1', D: 'X', A: '2' };
@@ -509,7 +455,6 @@ function ahOutcome(diff, line) {
 
 const parsed = new Map();
 
-/** Piac-azonosító értelmezése: tartomány és kimenet-függvény */
 export function parseMarket(id) {
   if (parsed.has(id)) return parsed.get(id);
   const p = id.split(':');
@@ -564,7 +509,6 @@ export function parseMarket(id) {
     case 'CLS': f = (s) => (((p[1] === 'H' ? s.ag : s.hg) === 0) === (p[2] === 'Y') ? W : L0); break;
     case 'WTN': f = (s) => (p[1] === 'H' ? (s.hg > 0 && s.ag === 0 ? W : L0) : s.ag > 0 && s.hg === 0 ? W : L0); break;
     case 'WM': {
-      // győzelmi különbség: H1, H2, H3+ / A1 ...
       const team = p[1][0];
       const plus = p[1].endsWith('+');
       const n = parseInt(p[1].slice(1), 10);
@@ -595,7 +539,6 @@ export function parseMarket(id) {
     }
     case 'HTBTTS': dom = 'h'; f = (s) => ((s.h1 > 0 && s.a1 > 0) === (p[1] === 'Y') ? W : L0); break;
     case 'SBH': {
-      // gól mindkét félidőben
       dom = 'h';
       f = (s) => ((s.h1 + s.a1 > 0 && s.h2 + s.a2 > 0) === (p[1] === 'Y') ? W : L0);
       break;
@@ -615,7 +558,6 @@ export function parseMarket(id) {
   return out;
 }
 
-/** Megjelenítendő szöveg egy piachoz */
 export function marketText(id, home = 'Hazai', away = 'Vendég') {
   const p = id.split(':');
   const T = (k) => (k === 'H' ? home : k === 'A' ? away : 'Döntetlen');
@@ -624,7 +566,7 @@ export function marketText(id, home = 'Hazai', away = 'Vendég') {
   const YN = (s) => (s === 'Y' ? 'Igen' : 'Nem');
   const hcp = (x) => (x > 0 ? '+' : x < 0 ? '−' : '') + fmtLine(Math.abs(x));
   switch (p[0]) {
-    case '1X2': return { g: 'Végeredmény', s: `${R(p[1])} · ${T(p[1])}`, short: R(p[1]) };
+    case '1X2': return { g: 'Végeredmény', s: `${R(p[1])} (${T(p[1])})`, short: R(p[1]) };
     case 'DC': return { g: 'Kettős esély', s: p[1], short: p[1] };
     case 'DNB': return { g: 'Döntetlennél visszajár', s: T(p[1]), short: p[1] === 'H' ? '1' : '2' };
     case 'OU': return { g: 'Gólok száma', s: OU(p[2], +p[1]), short: (p[2] === 'O' ? 'T ' : 'K ') + fmtLine(+p[1]) };
@@ -633,16 +575,16 @@ export function marketText(id, home = 'Hazai', away = 'Vendég') {
     case 'RB': return { g: 'Végeredmény + mindkét csapat gól', s: `${R(p[1])} és ${YN(p[2]).toLowerCase()}` };
     case 'RO': return { g: 'Végeredmény + gólok', s: `${R(p[1])} és ${OU(p[3], +p[2]).toLowerCase()}` };
     case 'BO': return { g: 'Mindkét csapat gól + gólok', s: `${YN(p[1])} és ${OU(p[3], +p[2]).toLowerCase()}` };
-    case 'EH': return { g: `Hendikep (${p[1] === 'H' ? home : away} ${hcp(+p[2])})`, s: `${R(p[3])} · ${T(p[3])}` };
+    case 'EH': return { g: `Hendikep (${p[1] === 'H' ? home : away} ${hcp(+p[2])})`, s: `${R(p[3])} (${T(p[3])})` };
     case 'AH': {
       const l = +p[1];
       return { g: 'Ázsiai hendikep', s: p[2] === 'H' ? `${home} ${hcp(l)}` : `${away} ${hcp(-l)}` };
     }
-    case 'CS': return { g: 'Pontos végeredmény', s: p[1] === 'X' ? 'Egyéb (6+ gól egy csapattól)' : p[1].replace('-', '–') };
+    case 'CS': return { g: 'Pontos végeredmény', s: p[1] === 'X' ? 'Egyéb (6+ gól egy csapattól)' : p[1] };
     case 'TG': return { g: 'Gólok pontos száma', s: `${p[1]} gól` };
     case 'TGR': {
       const [lo, hi] = p[1].split('-');
-      return { g: 'Gólok sávja', s: hi === '' ? `${lo} vagy több gól` : `${lo}–${hi} gól` };
+      return { g: 'Gólok sávja', s: hi === '' ? `${lo} vagy több gól` : `${lo}-${hi} gól` };
     }
     case 'OE': return { g: 'Gólok páros / páratlan', s: p[1] === 'O' ? 'Páratlan' : 'Páros' };
     case 'TS': return { g: `${T(p[1])} szerez gólt`, s: YN(p[2]) };
@@ -652,35 +594,31 @@ export function marketText(id, home = 'Hazai', away = 'Vendég') {
       const team = p[1][0];
       return { g: 'Győzelmi különbség', s: `${T(team)} ${p[1].slice(1)} góllal` };
     }
-    case 'HT1X2': return { g: 'Félidő eredménye', s: `${R(p[1])} · ${T(p[1])}`, short: R(p[1]) };
+    case 'HT1X2': return { g: 'Félidő eredménye', s: `${R(p[1])} (${T(p[1])})`, short: R(p[1]) };
     case 'HTDC': return { g: 'Félidő kettős esély', s: p[1] };
     case 'HTOU': return { g: 'Félidő gólok', s: OU(p[2], +p[1]) };
     case 'HTFT': {
       const [x, y] = p[1].split('/');
       return { g: 'Félidő / végeredmény', s: `${R(x)} / ${R(y)}` };
     }
-    case 'H2X': return { g: '2. félidő eredménye', s: `${R(p[1])} · ${T(p[1])}` };
+    case 'H2X': return { g: '2. félidő eredménye', s: `${R(p[1])} (${T(p[1])})` };
     case 'H2OU': return { g: '2. félidő gólok', s: OU(p[2], +p[1]) };
     case 'HSH': return { g: 'Gólgazdagabb félidő', s: p[1] === '1' ? '1. félidő' : p[1] === '2' ? '2. félidő' : 'Egyenlő' };
     case 'HTBTTS': return { g: 'Félidő: mindkét csapat gól', s: YN(p[1]) };
     case 'SBH': return { g: 'Gól mindkét félidőben', s: YN(p[1]) };
     case 'CO': return { g: 'Szögletek száma', s: OU(p[2], +p[1]) };
     case 'CTT': return { g: `${T(p[1])} szögletei`, s: OU(p[3], +p[2]) };
-    case 'C1X2': return { g: 'Több szöglet', s: `${R(p[1])} · ${T(p[1])}` };
+    case 'C1X2': return { g: 'Több szöglet', s: `${R(p[1])} (${T(p[1])})` };
     case 'CAH': {
       const l = +p[1];
       return { g: 'Szöglet-hendikep', s: p[2] === 'H' ? `${home} ${hcp(l)}` : `${away} ${hcp(-l)}` };
     }
     case 'KO': return { g: 'Lapok száma', s: OU(p[2], +p[1]) };
     case 'KTT': return { g: `${T(p[1])} lapjai`, s: OU(p[3], +p[2]) };
-    case 'K1X2': return { g: 'Több lap', s: `${R(p[1])} · ${T(p[1])}` };
+    case 'K1X2': return { g: 'Több lap', s: `${R(p[1])} (${T(p[1])})` };
     default: return { g: id, s: '' };
   }
 }
-
-/* ------------------------------------------------------------------ */
-/* Kiértékelés állapottereken                                          */
-/* ------------------------------------------------------------------ */
 
 function binomCache(P) {
   if (!P._bin) {
@@ -693,7 +631,6 @@ function binomCache(P) {
   return P._bin;
 }
 
-/** gól-állapotok bejárása; ha needHalf, félidő-bontással (binomiális ritkítás) */
 function eachGoalState(P, needHalf, cb) {
   const { mat, N } = P;
   const s = { hg: 0, ag: 0, h1: 0, a1: 0, h2: 0, a2: 0 };
@@ -764,9 +701,6 @@ function eachState(P, dom, needHalf, cb) {
   return eachCountState(P, dom, cb);
 }
 
-/**
- * Sok piac egyszerre: {id: {p, push}} (p = nyerési, push = visszajárási valószínűség)
- */
 export function evalMarkets(P, ids) {
   const out = {};
   const groups = { g: [], h: [], c: [], k: [] };
@@ -792,14 +726,6 @@ export function evalMarkets(P, ids) {
   run(groups.k, 'k', false);
   return out;
 }
-
-export function evalMarket(P, id) {
-  return evalMarkets(P, [id])[id];
-}
-
-/* ------------------------------------------------------------------ */
-/* Csapat- és bajnoki statisztikák                                     */
-/* ------------------------------------------------------------------ */
 
 export function teamView(m, team) {
   const home = m.h === team;
@@ -877,7 +803,6 @@ export function aggregate(list) {
   if (withC.length) for (const ln of [7.5, 8.5, 9.5, 10.5, 11.5]) out.cOver[ln] = pctOf(withC, (x) => x.cf + x.ca > ln);
   const withK = list.filter((x) => x.kf != null);
   if (withK.length) for (const ln of [2.5, 3.5, 4.5, 5.5]) out.kOver[ln] = pctOf(withK, (x) => x.kf + x.ka > ln);
-  // félidő
   const withH = list.filter((x) => x.h1f != null);
   if (withH.length) {
     out.htW = pctOf(withH, (x) => x.h1f > x.h1a);

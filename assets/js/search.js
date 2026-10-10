@@ -1,10 +1,8 @@
-// Keresés: csapatok, közelgő meccsek, beírt párosítások ("Arsenal - Chelsea")
-
 import { esc, matchScore, fmtDate, icon } from './util.js';
 import { getFixtures, getTeamIndex, leagueInfo, state } from './data.js';
 import { matchLink } from './ui.js';
 
-const SEP = /\s+(?:-|–|—|vs\.?|v|ellen)\s+|\s*[–—]\s*|\s+-\s*|\s*-\s+/i;
+const SEP = /\s+(?:-|\u2013|\u2014|vs\.?|v|ellen)\s+|\s*[\u2013\u2014]\s*|\s+-\s*|\s*-\s+/i;
 
 export async function searchAll(q, { limit = 8 } = {}) {
   q = q.trim();
@@ -24,7 +22,6 @@ export async function searchAll(q, { limit = 8 } = {}) {
       .sort((x, y) => y.s - x.s)
       .slice(0, limit)
       .map((x) => x.f);
-    // csapatpárok ugyanabból a bajnokságból
     const ta = teams.map((t) => ({ ...t, s: matchScore(t.n, qa) })).filter((t) => t.s > 0).sort((x, y) => y.s - x.s).slice(0, 6);
     const tb = teams.map((t) => ({ ...t, s: matchScore(t.n, qb) })).filter((t) => t.s > 0).sort((x, y) => y.s - x.s).slice(0, 6);
     for (const x of ta) for (const y of tb) {
@@ -56,7 +53,7 @@ export function resultsHtml(r, q) {
     html += r.fixtures
       .map((f) => {
         const li = leagueInfo(f.l);
-        return `<a class="gs-item" href="${esc(matchLink(f.l, f.h, f.a))}"><span class="tag">${esc(li ? li.cc : f.l)}</span><span>${esc(f.h)} – ${esc(f.a)}</span><span class="gs-sub">${fmtDate(f.d)} ${esc(f.t || '')}</span></a>`;
+        return `<a class="gs-item" href="${esc(matchLink(f.l, f.h, f.a))}"><span class="tag">${esc(li ? li.cc : f.l)}</span><span>${esc(f.h)} - ${esc(f.a)}</span><span class="gs-sub">${fmtDate(f.d)} ${esc(f.t || '')}</span></a>`;
       })
       .join('');
   }
@@ -65,7 +62,7 @@ export function resultsHtml(r, q) {
     html += r.pairs
       .map((p) => {
         const li = leagueInfo(p.l);
-        return `<a class="gs-item" href="${esc(matchLink(p.l, p.h, p.a))}"><span class="tag">${esc(li ? li.cc : p.l)}</span><span>${esc(p.h)} – ${esc(p.a)}</span><span class="gs-sub">${esc(li ? li.name : '')}</span></a>`;
+        return `<a class="gs-item" href="${esc(matchLink(p.l, p.h, p.a))}"><span class="tag">${esc(li ? li.cc : p.l)}</span><span>${esc(p.h)} - ${esc(p.a)}</span><span class="gs-sub">${esc(li ? li.name : '')}</span></a>`;
       })
       .join('');
   }
@@ -79,12 +76,11 @@ export function resultsHtml(r, q) {
       .join('');
   }
   if (!html) {
-    html = `<div class="gs-item" style="cursor:default;color:var(--text-3)">Nincs találat erre: „${esc(q)}”. Párosításhoz írd így: <b style="color:var(--text)">Arsenal - Chelsea</b></div>`;
+    html = `<div class="gs-item" style="cursor:default;color:var(--text-3)">Nincs találat erre: "${esc(q)}". Párosításhoz írd így: <b style="color:var(--text)">Arsenal - Chelsea</b></div>`;
   }
   return html;
 }
 
-/** keresőmező bekötése legördülő találatlistával */
 export function bindSearch(input, box, { onPick } = {}) {
   let seq = 0;
   let sel = -1;
@@ -96,7 +92,7 @@ export function bindSearch(input, box, { onPick } = {}) {
       return;
     }
     if (!state.teamIndex) {
-      box.innerHTML = `<div class="gs-item" style="cursor:default;color:var(--text-3)"><span class="spinner"></span>Csapatlista betöltése (első alkalommal néhány másodperc)…</div>`;
+      box.innerHTML = `<div class="gs-item" style="cursor:default;color:var(--text-3)"><span class="spinner"></span>Csapatlista betöltése (első alkalommal néhány másodperc)...</div>`;
       box.classList.add('open');
     }
     const r = await searchAll(q);

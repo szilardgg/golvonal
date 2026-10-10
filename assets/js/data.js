@@ -1,9 +1,5 @@
-// Adatbetöltés és gyorsítótárazás.
-// Helyben a PHP-s api.php-t használja, GitHub Pages-en a build.php által
-// előállított statikus data/*.json fájlokat.
-
 import { store, qs, todayIso } from './util.js';
-import { prepLeague, buildModel, predict, DEFAULT_OPTS } from './model.js';
+import { prepLeague, fitLeague, DEFAULT_OPTS } from './stats.js';
 
 const mem = new Map();
 
@@ -25,8 +21,6 @@ async function getJSON(params) {
   p.catch(() => mem.delete(key));
   return p;
 }
-
-/* ---------- statikus mód ---------- */
 
 export const STATIC = !!window.GV_STATIC;
 let buildId = '';
@@ -82,7 +76,7 @@ export const api = STATIC
   ? {
       leagues: async () => {
         const j = await sget('leagues.json');
-        buildId = j.generated || '';
+        buildId = j.updated || '';
         return j;
       },
       league: (code, seasons = 2, from = null) => staticLeague(code, seasons, from),
@@ -100,18 +94,14 @@ export const api = STATIC
       h2h: (code, home, away) => getJSON({ action: 'h2h', code, home, away, seasons: 10 }),
     };
 
-/* ---------- beállítások (csak a téma változtatható) ---------- */
-
 export const settings = {
-  model: { ...DEFAULT_OPTS },
+  fit: { ...DEFAULT_OPTS },
   theme: store.get('theme', 'system'),
 };
 
 export function saveSettings() {
   store.set('theme', settings.theme);
 }
-
-/* ---------- állapot ---------- */
 
 export const state = {
   leagues: [],
@@ -127,7 +117,7 @@ export async function init() {
   state.leagues = j.leagues;
   state.season = j.season;
   state.today = todayIso();
-  state.generated = j.generated || null;
+  state.updated = j.updated || null;
   for (const l of j.leagues) state.leagueMap.set(l.code, l);
   return state;
 }
@@ -137,7 +127,7 @@ export const leagueInfo = (code) => state.leagueMap.get(code);
 const leagues = new Map();
 
 export function loadLeague(code, seasons = null, from = null) {
-  const n = seasons || settings.model.seasons || 2;
+  const n = seasons || settings.fit.seasons || 2;
   const key = `${code}|${n}|${from || ''}`;
   if (!leagues.has(key)) {
     const p = api.league(code, n, from).then((raw) => prepLeague(raw, leagueInfo(code)));
@@ -149,24 +139,18 @@ export function loadLeague(code, seasons = null, from = null) {
 
 export const getLeague = (code) => loadLeague(code);
 
-const models = new Map();
-export function getModel(code) {
-  if (models.has(code)) return models.get(code);
-  const p = getLeague(code).then((L) => ({ L, M: buildModel(L, settings.model) }));
-  models.set(code, p);
-  p.catch(() => models.delete(code));
+const fits = new Map();
+export function getFit(code) {
+  if (fits.has(code)) return fits.get(code);
+  const p = getLeague(code).then((L) => ({ L, M: fitLeague(L, settings.fit) }));
+  fits.set(code, p);
+  p.catch(() => fits.delete(code));
   return p;
-}
-
-export async function getPrediction(code, home, away, ref = null) {
-  const { M } = await getModel(code);
-  return M ? predict(M, home, away, { ref }) : null;
 }
 
 export async function getFixtures() {
   if (!state.fixtures) {
     const j = await api.fixtures();
-    // a már lejátszott (múltbeli dátumú) meccseket kihagyjuk
     state.fixtures = j.fixtures.filter((f) => f.d >= state.today);
   }
   return state.fixtures;
@@ -185,7 +169,6 @@ export async function getTeamIndex() {
   return state.teamIndex;
 }
 
-/** párhuzamos feldolgozás korláttal */
 export async function pool(items, limit, fn) {
   const queue = items.slice();
   const workers = Array.from({ length: Math.min(limit, queue.length) }, async () => {

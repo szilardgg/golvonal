@@ -31,7 +31,7 @@ $v = static function (string $f): string {
 <body>
   <header class="topbar">
     <div class="topbar-inner">
-      <a class="brand" href="#/" aria-label="Gólvonal – kezdőlap">
+      <a class="brand" href="#/" aria-label="Gólvonal">
         <span class="brand-mark" aria-hidden="true">
           <svg viewBox="0 0 32 32" width="28" height="28"><rect width="32" height="32" rx="8" fill="currentColor"/><circle cx="16" cy="16" r="8.5" fill="none" stroke="var(--brand-ink)" stroke-width="2.4"/><path d="M16 4v24" stroke="var(--brand-ink)" stroke-width="2.4"/></svg>
         </span>

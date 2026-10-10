@@ -1,9 +1,4 @@
 <?php
-/**
- * Gólvonal – közös adatfüggvények (api.php és build.php használja)
- * Forrás: football-data.co.uk (eredmények, statisztikák, oddsok)
- * A letöltött CSV fájlokat a cache/ mappában tárolja.
- */
 
 declare(strict_types=1);
 
@@ -14,12 +9,11 @@ date_default_timezone_set('Europe/Budapest');
 
 const BASE_URL   = 'https://www.football-data.co.uk/';
 const CACHE_DIR  = __DIR__ . '/cache';
-const TTL_LIVE   = 3 * 3600;      // aktuális szezon
-const TTL_FIX    = 1 * 3600;      // közelgő meccsek
-const TTL_OLD    = 30 * 86400;    // lezárt szezonok
+const TTL_LIVE   = 3 * 3600;
+const TTL_FIX    = 1 * 3600;
+const TTL_OLD    = 30 * 86400;
 
 $LEAGUES = [
-    // kód => [ország, név, ország rövid, típus, ország-csoport]
     'E0'  => ['Anglia', 'Premier League', 'ENG', 'main', 'ENG', 1],
     'E1'  => ['Anglia', 'Championship', 'ENG', 'main', 'ENG', 2],
     'E2'  => ['Anglia', 'League One', 'ENG', 'main', 'ENG', 3],
@@ -60,17 +54,12 @@ $LEAGUES = [
     'CHN' => ['Kína', 'Super League', 'CHN', 'extra', 'CHN', 1],
 ];
 
-// new_league_fixtures.csv "Country" oszlop => kód
 $EXTRA_BY_COUNTRY = [
     'Austria' => 'AUT', 'Switzerland' => 'SWZ', 'Denmark' => 'DNK', 'Poland' => 'POL',
     'Romania' => 'ROU', 'Russia' => 'RUS', 'Norway' => 'NOR', 'Sweden' => 'SWE',
     'Finland' => 'FIN', 'Ireland' => 'IRL', 'Argentina' => 'ARG', 'Brazil' => 'BRA',
     'Mexico' => 'MEX', 'USA' => 'USA', 'Japan' => 'JPN', 'China' => 'CHN',
 ];
-
-/* ------------------------------------------------------------------ */
-/* Segédfüggvények                                                     */
-/* ------------------------------------------------------------------ */
 
 function respond($data, int $status = 200): void
 {
@@ -113,16 +102,11 @@ function curl_handle(string $url)
         CURLOPT_CONNECTTIMEOUT => 10,
         CURLOPT_TIMEOUT        => 40,
         CURLOPT_ENCODING       => '',
-        CURLOPT_USERAGENT      => 'Golvonal/1.0 (+local analysis tool)',
+        CURLOPT_USERAGENT      => 'Mozilla/5.0 (compatible; Golvonal/1.0)',
     ]);
     return $ch;
 }
 
-/**
- * Több fájl letöltése párhuzamosan, gyorsítótárazva.
- * @param array $items  [kulcs => [relatív útvonal, ttl]]
- * @return array        [kulcs => csv szöveg | null]
- */
 function fetch_many(array $items): array
 {
     ensure_cache_dir();
@@ -162,7 +146,6 @@ function fetch_many(array $items): array
             @file_put_contents($file, $body, LOCK_EX);
             $out[$key] = $body;
         } elseif (is_file($file)) {
-            // hálózati hiba esetén a régi példány is jobb a semminél
             $out[$key] = file_get_contents($file);
         } else {
             $out[$key] = null;
@@ -176,7 +159,6 @@ function parse_csv(?string $text): array
 {
     if ($text === null || $text === '') return [];
     $text = preg_replace('/^\xEF\xBB\xBF/', '', $text);
-    // néhány régi fájl Windows-1252 kódolású
     if (!mb_check_encoding($text, 'UTF-8')) {
         $text = mb_convert_encoding($text, 'UTF-8', 'Windows-1252');
     }
@@ -249,7 +231,6 @@ function season_label(string $code): string
     return '20' . substr($code, 0, 2) . '/' . substr($code, 2, 2);
 }
 
-/** Szorzók: elsőként a piaci átlag, majd a fogadóirodák. */
 function odds_1x2(array $r, bool $closing = false): ?array
 {
     $sets = $closing
@@ -298,7 +279,6 @@ function strip_nulls(array $a): array
     return array_filter($a, fn($v) => $v !== null);
 }
 
-/** Fő bajnokságok sora => egységes meccs objektum */
 function norm_main(array $r, string $season): ?array
 {
     $date = parse_date($r['Date'] ?? '');
@@ -343,7 +323,6 @@ function norm_main(array $r, string $season): ?array
     return strip_nulls($m);
 }
 
-/** Extra bajnokságok sora */
 function norm_extra(array $r): ?array
 {
     $date = parse_date($r['Date'] ?? '');
@@ -368,7 +347,6 @@ function norm_extra(array $r): ?array
     return strip_nulls($m);
 }
 
-/** Egy bajnokság meccsei (legfrissebb $count szezon). */
 function league_matches(string $code, int $count, ?string $fromSeason = null): array
 {
     global $LEAGUES;
@@ -415,7 +393,6 @@ function league_matches(string $code, int $count, ?string $fromSeason = null): a
     return ['matches' => $matches, 'seasons' => $seasons];
 }
 
-/** Elérhető szezonok listája egy bajnokságnál */
 function league_seasons(string $code): array
 {
     global $LEAGUES;
@@ -435,11 +412,6 @@ function label_to_code(string $label): ?string
     if (preg_match('#^20(\d{2})/(\d{2})$#', $label, $m)) return $m[1] . $m[2];
     return null;
 }
-
-
-/* ------------------------------------------------------------------ */
-/* Összetett adatok (API végpontok és statikus build)                  */
-/* ------------------------------------------------------------------ */
 
 function leagues_data(): array
 {

@@ -1,13 +1,4 @@
 <?php
-/**
- * Statikus változat előállítása (GitHub Pages-hez).
- *
- * Használat:  php build.php [kimeneti mappa] [szezonok száma]
- * Alapértelmezés: _site, 6 szezon
- *
- * A kimenet: index.html, assets/, data/*.json – PHP nélkül, bármilyen
- * statikus tárhelyen működik. A GitHub Actions workflow 3 óránként futtatja.
- */
 
 declare(strict_types=1);
 
@@ -50,7 +41,6 @@ function log_line(string $msg): void
     fwrite(STDOUT, $msg . PHP_EOL);
 }
 
-// 1) felület
 if (!is_dir($out)) mkdir($out, 0775, true);
 copy_dir(__DIR__ . '/assets', "$out/assets");
 $GV_STATIC = true;
@@ -60,9 +50,8 @@ file_put_contents("$out/index.html", ob_get_clean());
 file_put_contents("$out/.nojekyll", '');
 log_line('Felület kész.');
 
-// 2) általános adatok
-$generated = date('c');
-out_json("$out/data/leagues.json", leagues_data() + ['generated' => $generated, 'static' => true]);
+$updated = date('c');
+out_json("$out/data/leagues.json", leagues_data() + ['updated' => $updated, 'static' => true]);
 $fx = fixtures_data();
 out_json("$out/data/fixtures.json", $fx);
 log_line('Közelgő meccsek: ' . count($fx['fixtures']));
@@ -70,7 +59,6 @@ $teams = teams_data();
 out_json("$out/data/teams.json", $teams);
 log_line('Csapatok: ' . count($teams['teams']));
 
-// 3) bajnokságok szezononként
 $total = 0;
 foreach ($LEAGUES as $code => $l) {
     $data = league_matches($code, $seasonCount);
@@ -88,4 +76,4 @@ foreach ($LEAGUES as $code => $l) {
     log_line(sprintf('%-4s %-28s %s', $code, $l[1], implode(', ', array_map(fn($x) => $x['s'] . ' (' . $x['n'] . ')', $index))));
 }
 
-log_line(sprintf('Kész: %d meccs, %.1f mp → %s', $total, microtime(true) - $started, $out));
+log_line(sprintf('Kész: %d meccs, %.1f mp - %s', $total, microtime(true) - $started, $out));

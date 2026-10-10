@@ -1,5 +1,3 @@
-// Közös felületi elemek
-
 import { esc, fmtPct, icon, fmtNum } from './util.js';
 import { state, leagueInfo } from './data.js';
 
@@ -11,7 +9,7 @@ export function formDots(arr, sm = false) {
 
 export function leagueTag(code) {
   const l = leagueInfo(code);
-  return `<span class="tag" title="${l ? esc(l.country + ' – ' + l.name) : ''}">${esc(l ? l.cc : code)}</span>`;
+  return `<span class="tag" title="${l ? esc(l.country + ' - ' + l.name) : ''}">${esc(l ? l.cc : code)}</span>`;
 }
 
 export function leagueOptions(selected) {
@@ -36,13 +34,12 @@ export function probBar(p3, lg = false) {
   return `<div class="pbar ${lg ? 'lg' : ''}"><span class="h" style="width:${h * 100}%"></span><span class="d" style="width:${d * 100}%"></span><span class="a" style="width:${a * 100}%"></span></div>`;
 }
 
-/** egy lehetséges kimenet esélye (a legvalószínűbb kiemelve) */
 export function pcell(label, p, best = false) {
-  if (p == null) return `<div class="pc empty"><span class="pc-l">${esc(label)}</span><b>–</b></div>`;
+  if (p == null) return `<div class="pc empty"><span class="pc-l">${esc(label)}</span><b>-</b></div>`;
   return `<div class="pc ${best ? 'best' : ''} ${p < 0.05 ? 'low' : ''}"><span class="pc-l">${esc(label)}</span><b class="num">${fmtPct(p, p < 0.1 ? 1 : 0)}</b></div>`;
 }
 
-export function loading(text = 'Betöltés…') {
+export function loading(text = 'Betöltés...') {
   return `<div class="loading"><span class="spinner"></span>${esc(text)}</div>`;
 }
 
@@ -59,11 +56,11 @@ export function kpi(k, v, s = '') {
 }
 
 export function scoreBadge(gf, ga, r) {
-  return `<span class="score ${r || ''}">${gf}–${ga}</span>`;
+  return `<span class="score ${r || ''}">${gf}-${ga}</span>`;
 }
 
-export const pct = (v) => (v == null ? '–' : fmtPct(v, 0));
-export const num = (v, d = 2) => (v == null ? '–' : fmtNum(v, d));
+export const pct = (v) => (v == null ? '-' : fmtPct(v, 0));
+export const num = (v, d = 2) => (v == null ? '-' : fmtNum(v, d));
 
 export function teamLink(code, team, label = null) {
   return `<a href="#/csapat?l=${encodeURIComponent(code)}&t=${encodeURIComponent(team)}">${esc(label || team)}</a>`;

@@ -1,8 +1,5 @@
-// Egyszerű SVG grafikonok
-
 import { esc, fmtNum, fmtDate } from './util.js';
 
-/** gólok meccsenként: lőtt felfelé, kapott lefelé; xG pontokkal */
 export function goalsTimeline(list, { height = 150 } = {}) {
   if (!list.length) return '<div class="empty small">Nincs adat</div>';
   const W = list.length * 40 + 20;
@@ -17,7 +14,7 @@ export function goalsTimeline(list, { height = 150 } = {}) {
   list.forEach((x, i) => {
     const cx = 10 + step * i + step / 2;
     const up = x.gf * unit, dn = x.ga * unit;
-    const title = `${fmtDate(x.m.d, true)} · ${x.home ? 'H' : 'V'} ${x.opp} ${x.gf}–${x.ga}${x.xgf != null ? ` · xG ${fmtNum(x.xgf, 2)}–${fmtNum(x.xga, 2)}` : ''}`;
+    const title = `${fmtDate(x.m.d, true)}, ${x.home ? 'H' : 'V'} ${x.opp} ${x.gf}-${x.ga}${x.xgf != null ? `, xG ${fmtNum(x.xgf, 2)}-${fmtNum(x.xga, 2)}` : ''}`;
     bars += `<g><title>${esc(title)}</title>
       <rect x="${cx - bw / 2}" y="${mid - up}" width="${bw}" height="${Math.max(up, 0.0001)}" rx="2" fill="${col[x.r]}" opacity="0.9"/>
       <rect x="${cx - bw / 2}" y="${mid}" width="${bw}" height="${Math.max(dn, 0.0001)}" rx="2" fill="${col[x.r]}" opacity="0.35"/>
@@ -36,7 +33,6 @@ export function goalsTimeline(list, { height = 150 } = {}) {
   </svg>`;
 }
 
-/** tükrözött összehasonlító sor */
 export function cmpRow(label, a, b, { fmt = (v) => fmtNum(v, 2), higherBetter = true, max = null } = {}) {
   const va = a == null ? null : a;
   const vb = b == null ? null : b;
@@ -50,10 +46,10 @@ export function cmpRow(label, a, b, { fmt = (v) => fmtNum(v, 2), higherBetter = 
     cb = aBetter ? 'worse' : 'better';
   }
   return `<div class="cmp-row">
-    <div class="v ${ca}">${va == null ? '–' : fmt(va)}</div>
+    <div class="v ${ca}">${va == null ? '-' : fmt(va)}</div>
     <div class="bar l"><span style="width:${wa}%"></span></div>
     <div class="lbl">${esc(label)}</div>
     <div class="bar r"><span style="width:${wb}%"></span></div>
-    <div class="v r ${cb}">${vb == null ? '–' : fmt(vb)}</div>
+    <div class="v r ${cb}">${vb == null ? '-' : fmt(vb)}</div>
   </div>`;
 }

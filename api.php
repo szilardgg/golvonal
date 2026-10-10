@@ -1,8 +1,4 @@
 <?php
-/**
- * Gólvonal – adat API (helyi / PHP-s futtatáshoz)
- * GitHub Pages-en a build.php által előállított statikus JSON fájlok helyettesítik.
- */
 
 declare(strict_types=1);
 
@@ -60,7 +56,6 @@ try {
             $n = 0;
             foreach (glob(CACHE_DIR . '/*') ?: [] as $f) {
                 if (!is_file($f) || basename($f) === '.htaccess') continue;
-                // csak a frissülő fájlokat töröljük, a lezárt szezonokat megtartjuk
                 if (str_contains($f, current_season_code()) || str_contains($f, 'fixtures') || str_contains($f, 'new_') || str_contains($f, 'teams_index')) {
                     @unlink($f);
                     $n++;
