@@ -1,0 +1,72 @@
+<?php
+$v = static function (string $f): string {
+    $p = __DIR__ . '/' . $f;
+    return $f . '?v=' . (is_file($p) ? filemtime($p) : '1');
+};
+?><!doctype html>
+<html lang="hu">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Gólvonal</title>
+  <meta name="description" content="Labdarúgó-mérkőzések esélyei az eddigi eredmények alapján.">
+  <meta name="theme-color" content="#0b0d12">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230e9f6e'/%3E%3Ccircle cx='16' cy='16' r='8.5' fill='none' stroke='white' stroke-width='2.4'/%3E%3Cpath d='M16 4v24' stroke='white' stroke-width='2.4'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="<?= $v('assets/css/app.css') ?>">
+<?php if (!empty($GV_STATIC)): ?>
+  <script>window.GV_STATIC = true;</script>
+<?php endif; ?>
+  <script>
+    (function () {
+      try {
+        var t = JSON.parse(localStorage.getItem('gv.theme') || '"system"');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="#/" aria-label="Gólvonal – kezdőlap">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 32 32" width="28" height="28"><rect width="32" height="32" rx="8" fill="currentColor"/><circle cx="16" cy="16" r="8.5" fill="none" stroke="var(--brand-ink)" stroke-width="2.4"/><path d="M16 4v24" stroke="var(--brand-ink)" stroke-width="2.4"/></svg>
+        </span>
+        <span class="brand-name">Gólvonal</span>
+      </a>
+      <nav class="nav" id="nav" aria-label="Fő navigáció">
+        <a href="#/" data-route="meccsek">Meccsek</a>
+        <a href="#/elemzes" data-route="elemzes">Elemzés</a>
+        <a href="#/bajnoksag" data-route="bajnoksag">Bajnokságok</a>
+        <a href="#/csapat" data-route="csapat">Csapatok</a>
+        <a href="#/osszevetes" data-route="osszevetes">Összevetés</a>
+      </nav>
+      <div class="top-actions">
+        <div class="gsearch" id="gsearch">
+          <svg class="ic" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm9 16-4.35-4.35"/></svg>
+          <input type="search" id="gsearch-input" placeholder="Csapat vagy meccs keresése" autocomplete="off" spellcheck="false" aria-label="Keresés">
+          <kbd>/</kbd>
+          <div class="gsearch-results" id="gsearch-results" role="listbox"></div>
+        </div>
+        <button class="icon-btn" id="theme-btn" type="button" title="Téma váltása" aria-label="Téma váltása"></button>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <main id="view" class="view" tabindex="-1"></main>
+  </div>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <span>Adatforrás: football-data.co.uk</span>
+      <span>Az esélyek az eddigi meccsek alapján készült statisztikai becslések.</span>
+    </div>
+  </footer>
+
+  <script type="module" src="<?= $v('assets/js/app.js') ?>"></script>
+</body>
+</html>

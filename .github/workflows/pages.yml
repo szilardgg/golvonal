@@ -1,0 +1,55 @@
+name: Adatfrissítés és közzététel
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '17 */3 * * *'   # 3 óránként friss adatok
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: curl, mbstring
+          coverage: none
+
+      - name: Letöltött adatok gyorsítótára
+        uses: actions/cache@v4
+        with:
+          path: cache
+          key: football-data-${{ github.run_id }}
+          restore-keys: football-data-
+
+      - name: Statikus oldal előállítása
+        run: php build.php _site 6
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
