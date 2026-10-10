@@ -4,7 +4,7 @@ Focimeccsek esélyei az eddigi eredmények alapján, 38 bajnokságból.
 
 Oldal: https://szilardgg.github.io/golvonal/
 
-Az adatok a football-data.co.uk oldalról jönnek, 3 óránként frissülnek.
+Az adatok a football-data.co.uk oldalról jönnek. Frissítés: frissites.bat
 
 ## Saját gépen
 
